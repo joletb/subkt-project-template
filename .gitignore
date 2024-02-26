@@ -1,0 +1,37 @@
+*
+
+# Unignoring important project files
+!.gitattributes
+!.gitignore
+!*.ass
+!*.csv
+!*.log
+!*.md
+!*.midicsv
+!*.mscx
+!*.xml
+!*/
+!torrent_desc_*.txt
+!banner.webp
+
+# Fonts
+!*.otf
+!*.ttf
+
+# SubKt files
+!build.gradle.kts
+!gradle.properties
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+!gradlew
+!gradlew.bat
+!settings.gradle.kts
+!sub.properties
+.gradle/*
+.idea/*
+build/*
+!.github/workflows/*.yml
+
+# Ignoring merged .ass files, since we want those to be generated locally always
+*Merged.ass
+*qc.ass

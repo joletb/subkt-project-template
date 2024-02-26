@@ -1,0 +1,14 @@
+$show_title - $name
+
+\- https://www.goodjobmedia.com/  
+\- http://www.twitter.com/goodjobmedia  
+\- [\#goodjob@irc.rizon.net](irc://irc.rizon.net/goodjob)  
+\- https://discord.gg/0jeKKhzGn3EBNDI2  
+  
+If you encounter any playback issues with a GJM release, please make sure you are using the most recent version of MPC and xysubfilter, or mpv.
+It is highly recommended that you use mpv.
+Please note that there may be minor rendering differences between MPC/xysubfilter and mpv. 
+
+If you wish to report any other general issues with a GJM release, please reach out to us using our website or our Discord server (both linked above) as we are no longer checking torrent comment sections.
+  
+Enjoy the release!

@@ -1,0 +1,129 @@
+name: Merge & Publish
+on: 
+  workflow_dispatch:
+    inputs:
+        episode:
+          description: 'Episode number range'
+          required: true
+          default: '01'
+        batchmerge:
+          description: 'Merge multiple episodes - format is "{xx..xx}"'
+          required: true
+          type: boolean
+          default: false
+        cleanmerge:
+          description: 'Perform a clean merge (gets rid of KFX code and similar stuff)'
+          required: true
+          type: boolean
+          default: true
+        format:
+          description: 'Show format'
+          required: true
+          default: 'TV'
+        batchrepo:
+          description: 'Publish to batch repository'
+          required: true
+          type: boolean
+          default: false  
+        directory:
+          description: 'Batch repo directory'
+          required: true
+          default: 'Currently Airing'
+          type: choice
+          options:
+          - Currently Airing
+          - BDs and Batching
+          - Movies and One-shots
+          - Dropped
+        message:
+          description: 'Commit message'
+          required: true
+          default: 'Publish latest version'
+        description:
+          description: 'Commit description'
+          required: false
+          default: ''
+
+env:
+  SHOW_NAME: 'Sample Show' # Used for batch directories
+  SHOW_NAME_SHORT: 'SampleShow' # Used for batch filenames - Example: SampleShowXX-Batch.ass
+  BATCH_REPO: 'GoodJobMedia/gjmbatchscripts'
+  CI_COMMIT_AUTHOR: 'Good Job! Media'
+  CI_COMMIT_EMAIL: 'goodjobmedia.contact@gmail.com'
+        
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: 11
+      - uses: gradle/gradle-build-action@v2
+      - name: Run build with Gradle Wrapper
+        run: sh ./gradlew build
+      - name: Merge current script
+        run: |
+          if "${{ github.event.inputs.batchmerge }}" == "true"; then
+            for i in ${{ github.event.inputs.episode }}
+            do
+              if "${{ github.event.inputs.cleanmerge }}" == "true"; then
+                sh ./gradlew cleanmerge.$i -Prelease=${{ github.event.inputs.format }}
+              else
+                sh ./gradlew merge.$i -Prelease=${{ github.event.inputs.format }}
+              fi
+            done
+          else
+              if "${{ github.event.inputs.cleanmerge }}" == "true"; then
+                sh ./gradlew cleanmerge.${{ github.event.inputs.episode }} -Prelease=${{ github.event.inputs.format }}
+              else
+                sh ./gradlew merge.${{ github.event.inputs.episode }} -Prelease=${{ github.event.inputs.format }}
+              fi
+          fi
+      - name: Archive artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: merge-output
+          path: |
+            build/cleanmerge.*.ass
+            build/merge.*.ass
+      - name: Checkout and prepare for moving to batch repo
+        if: ${{ github.event.inputs.batchrepo == 'true' }}
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: ${{ github.event.inputs.directory }}/${{ env.SHOW_NAME }}
+          repository: ${{ env.BATCH_REPO }}
+          token: ${{ secrets.MERGE_PAT }}
+          path: batchrepo
+      - name: Move all the files to the batch repo
+        if: ${{ github.event.inputs.batchrepo == 'true' }}
+        run: |
+          for i in ${{ github.event.inputs.episode }}
+          do
+            mkdir -p "batchrepo/${{ github.event.inputs.directory }}/${{ env.SHOW_NAME }}"
+            OUTNAME="batchrepo/${{ github.event.inputs.directory }}/${{ env.SHOW_NAME }}/${{ env.SHOW_NAME_SHORT }}-$i-Batch.ass"
+            if "${{ github.event.inputs.cleanmerge }}" == "true"; then
+              mv "build/cleanmerge.${i}.${{ github.event.inputs.format }}.ass" "$OUTNAME"
+            else
+              mv "build/merge.${i}.${{ github.event.inputs.format }}.ass" "$OUTNAME"
+            fi
+          done
+      - name: GIT commit and push all changed files
+        if: ${{ github.event.inputs.batchrepo == 'true' }}
+        env: 
+          CI_COMMIT_MESSAGE: ${{ github.event.inputs.message }}
+          CI_COMMIT_DESCRIPTION: ${{ github.event.inputs.description }}
+        run: |
+          cd batchrepo
+          git config --global user.name "${{ env.CI_COMMIT_AUTHOR }}"
+          git config --global user.email "${{ env.CI_COMMIT_EMAIL }}"
+          git add .
+          if [[ `git status --porcelain` ]]; then
+            git commit -a -m "${{ env.CI_COMMIT_MESSAGE }}" -m "${{ env.CI_COMMIT_DESCRIPTION }}"
+            git push
+          else
+            echo "Nothing to commit."
+          fi
